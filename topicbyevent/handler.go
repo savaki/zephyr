@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/savaki/zephyr"
 )
 
@@ -53,7 +54,7 @@ func New(key string) *Handler {
 	}
 }
 
-func TopicName(item map[string]zephyr.AttributeValue, key string) (string, error) {
+func TopicName(item map[string]*dynamodb.AttributeValue, key string) (string, error) {
 	topicName := ""
 	err := Parse(item, key, func(tn string, message string) error {
 		topicName = tn
@@ -62,7 +63,7 @@ func TopicName(item map[string]zephyr.AttributeValue, key string) (string, error
 	return topicName, err
 }
 
-func Unmarshal(item map[string]zephyr.AttributeValue, key string) (string, error) {
+func Unmarshal(item map[string]*dynamodb.AttributeValue, key string) (string, error) {
 	message := ""
 	err := Parse(item, key, func(t string, m string) error {
 		message = m
@@ -71,17 +72,17 @@ func Unmarshal(item map[string]zephyr.AttributeValue, key string) (string, error
 	return message, err
 }
 
-func Marshal(topic, value string) zephyr.AttributeValue {
+func Marshal(topic, value string) *dynamodb.AttributeValue {
 	w := &bytes.Buffer{}
 	w.WriteString(prefix)
 	w.WriteString(topic)
 	w.WriteString(separator)
 	w.WriteString(value)
 
-	return zephyr.AttributeValue{S: aws.String(w.String())}
+	return &dynamodb.AttributeValue{S: aws.String(w.String())}
 }
 
-func Parse(item map[string]zephyr.AttributeValue, key string, fn func(string, string) error) error {
+func Parse(item map[string]*dynamodb.AttributeValue, key string, fn func(string, string) error) error {
 	if item == nil {
 		return ErrNilItem
 	}

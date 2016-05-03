@@ -3,6 +3,7 @@ package topicbyevent_test
 import (
 	"testing"
 
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/savaki/zephyr"
 	"github.com/savaki/zephyr/topicbyevent"
 )
@@ -13,7 +14,7 @@ func TestJSON(t *testing.T) {
 	contents := "contents"
 
 	// When
-	item := map[string]zephyr.AttributeValue{
+	item := map[string]*dynamodb.AttributeValue{
 		itemKey: topicbyevent.Marshal(topicName, contents),
 	}
 

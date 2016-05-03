@@ -66,9 +66,7 @@ func RunOnce(client *dynamodb.DynamoDB) {
 	item := map[string]*dynamodb.AttributeValue{}
 	state := "state" + strconv.Itoa(int(time.Now().UnixNano()%5))
 	if opts.Type == "event" {
-		v, err := topicbyevent.Marshal("matt-users-"+state, "matt-example", "blah")
-		check(err)
-		item[":attr"] = v
+		item[":attr"] = topicbyevent.Marshal("matt-users-"+state, "blah")
 
 	} else if opts.Type == "state" {
 		fmt.Fprintln(os.Stderr, state)

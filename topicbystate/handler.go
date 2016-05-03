@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"encoding/json"
+
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/savaki/zephyr"
 )
 
@@ -15,46 +18,67 @@ var (
 	ErrStateNotChanged = errors.New("State record was not updated")
 )
 
-func New(state string) zephyr.TopicNamer {
-	var fn zephyr.TopicNameFunc = func(record zephyr.Record) (string, error) {
-		if record.EventName != zephyr.Insert && record.EventName != zephyr.Modify {
-			return "", nil
-		}
+type Handler struct {
+	State string
+}
 
-		segments := strings.Split(record.EventSourceARN, "/")
-		if len(segments) < 2 {
-			return "", ErrInvalidARN
-		}
+func (h *Handler) TopicName(record zephyr.Record) (string, error) {
+	if record.EventName != zephyr.Insert && record.EventName != zephyr.Modify {
+		return "", nil
+	}
 
-		fqTableName := segments[1]
+	segments := strings.Split(record.EventSourceARN, "/")
+	if len(segments) < 2 {
+		return "", ErrInvalidARN
+	}
 
-		newState, err := State(state, record.Dynamodb.NewImage)
-		if err != nil {
-			return "", err
-		}
+	fqTableName := segments[1]
 
-		topicName := fmt.Sprintf("%v-%v", fqTableName, newState)
+	newState, err := State(h.State, record.Dynamodb.NewImage)
+	if err != nil {
+		return "", err
+	}
 
-		if record.EventName == zephyr.Insert {
-			return topicName, nil
-		}
+	topicName := fmt.Sprintf("%v-%v", fqTableName, newState)
 
-		oldState, err := State(state, record.Dynamodb.OldImage)
-		if err != nil {
-			return "", err
-		}
-
-		if newState == oldState {
-			return "", ErrStateNotChanged
-		}
-
+	if record.EventName == zephyr.Insert {
 		return topicName, nil
 	}
 
-	return fn
+	oldState, err := State(h.State, record.Dynamodb.OldImage)
+	if err != nil {
+		return "", err
+	}
+
+	if newState == oldState {
+		return "", ErrStateNotChanged
+	}
+
+	return topicName, nil
 }
 
-func State(state string, item map[string]zephyr.AttributeValue) (string, error) {
+func (h *Handler) ExtractMessage(record zephyr.Record) (string, error) {
+	r := Record{
+		Keys:     newMap(record.Dynamodb.Keys),
+		NewImage: newMap(record.Dynamodb.NewImage),
+		OldImage: newMap(record.Dynamodb.OldImage),
+	}
+
+	data, err := json.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+func New(state string) zephyr.TopicNamer {
+	return &Handler{
+		State: state,
+	}
+}
+
+func State(state string, item map[string]*dynamodb.AttributeValue) (string, error) {
 	value, ok := item[state]
 	if !ok {
 		return "", ErrStateNotFound

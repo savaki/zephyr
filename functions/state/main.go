@@ -18,7 +18,7 @@ func main() {
 	}
 
 	z := zephyr.New(
-		zephyr.WithTopicNamer(topicbystate.New("state")),
+		zephyr.WithHandler(topicbystate.New("state")),
 		zephyr.Output(w),
 	)
 
