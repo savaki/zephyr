@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/savaki/zephyr"
 )
 
@@ -55,7 +54,7 @@ func New(state string) zephyr.TopicNamer {
 	return fn
 }
 
-func State(state string, item map[string]*dynamodb.AttributeValue) (string, error) {
+func State(state string, item map[string]zephyr.AttributeValue) (string, error) {
 	value, ok := item[state]
 	if !ok {
 		return "", ErrStateNotFound

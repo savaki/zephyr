@@ -10,7 +10,6 @@ import (
 	"github.com/apex/go-apex"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/savaki/zap"
 )
@@ -20,13 +19,26 @@ const (
 	Modify = "MODIFY"
 )
 
+type AttributeValue struct {
+	B    []byte                    `type:"blob"    json:",omitempty"`
+	BOOL *bool                     `type:"boolean" json:",omitempty"`
+	BS   [][]byte                  `type:"list"    json:",omitempty"`
+	L    []AttributeValue          `type:"list"    json:",omitempty"`
+	M    map[string]AttributeValue `type:"map"     json:",omitempty"`
+	N    *string                   `type:"string"  json:",omitempty"`
+	NS   []*string                 `type:"list"    json:",omitempty"`
+	NULL *bool                     `type:"boolean" json:",omitempty"`
+	S    *string                   `type:"string"  json:",omitempty"`
+	SS   []*string                 `type:"list"    json:",omitempty"`
+}
+
 type StreamRecord struct {
-	Keys           map[string]*dynamodb.AttributeValue
-	NewImage       map[string]*dynamodb.AttributeValue
-	OldImage       map[string]*dynamodb.AttributeValue
-	SequenceNumber string
-	SizeBytes      int64
-	StreamViewType string
+	Keys           map[string]AttributeValue `json:",omitempty"`
+	NewImage       map[string]AttributeValue `json:",omitempty"`
+	OldImage       map[string]AttributeValue `json:",omitempty"`
+	SequenceNumber string                    `json:",omitempty"`
+	SizeBytes      int64                     `json:",omitempty"`
+	StreamViewType string                    `json:",omitempty"`
 }
 
 type Record struct {

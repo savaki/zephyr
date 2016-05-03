@@ -1,8 +1,8 @@
 package topicbyevent
 
-import "github.com/aws/aws-sdk-go/service/dynamodb"
+import "github.com/savaki/zephyr"
 
-func StringValue(item map[string]*dynamodb.AttributeValue, key string) (string, bool) {
+func StringValue(item map[string]zephyr.AttributeValue, key string) (string, bool) {
 	if item == nil {
 		return "", false
 	}
@@ -12,7 +12,7 @@ func StringValue(item map[string]*dynamodb.AttributeValue, key string) (string, 
 		return "", false
 	}
 
-	if av == nil || av.S == nil {
+	if av.S == nil {
 		return "", false
 	}
 

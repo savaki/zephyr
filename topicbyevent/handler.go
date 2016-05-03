@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/savaki/zephyr"
 )
 
@@ -18,8 +17,9 @@ var (
 )
 
 const (
-	separator  = ","
-	prefixJSON = "json" + separator
+	separator = ","
+	version   = "1"
+	prefix    = version + separator
 )
 
 type Handler struct {
@@ -53,7 +53,7 @@ func New(key string) *Handler {
 	}
 }
 
-func TopicName(item map[string]*dynamodb.AttributeValue, key string) (string, error) {
+func TopicName(item map[string]zephyr.AttributeValue, key string) (string, error) {
 	topicName := ""
 	err := Parse(item, key, func(tn string, message string) error {
 		topicName = tn
@@ -62,7 +62,7 @@ func TopicName(item map[string]*dynamodb.AttributeValue, key string) (string, er
 	return topicName, err
 }
 
-func Unmarshal(item map[string]*dynamodb.AttributeValue, key string) (string, error) {
+func Unmarshal(item map[string]zephyr.AttributeValue, key string) (string, error) {
 	message := ""
 	err := Parse(item, key, func(t string, m string) error {
 		message = m
@@ -71,19 +71,17 @@ func Unmarshal(item map[string]*dynamodb.AttributeValue, key string) (string, er
 	return message, err
 }
 
-func Marshal(topic, key, value string) (*dynamodb.AttributeValue, error) {
+func Marshal(topic, value string) zephyr.AttributeValue {
 	w := &bytes.Buffer{}
-	w.WriteString(prefixJSON)
+	w.WriteString(prefix)
 	w.WriteString(topic)
 	w.WriteString(separator)
 	w.WriteString(value)
 
-	return &dynamodb.AttributeValue{
-		S: aws.String(w.String()),
-	}, nil
+	return zephyr.AttributeValue{S: aws.String(w.String())}
 }
 
-func Parse(item map[string]*dynamodb.AttributeValue, key string, fn func(string, string) error) error {
+func Parse(item map[string]zephyr.AttributeValue, key string, fn func(string, string) error) error {
 	if item == nil {
 		return ErrNilItem
 	}
@@ -93,17 +91,17 @@ func Parse(item map[string]*dynamodb.AttributeValue, key string, fn func(string,
 		return ErrEmptyKey
 	}
 
-	if av == nil || av.S == nil {
+	if av.S == nil {
 		return ErrEmptyValue
 	}
 
 	raw := *av.S
 
-	if !strings.HasPrefix(raw, prefixJSON) {
+	if !strings.HasPrefix(raw, prefix) {
 		return ErrInvalidEncoding
 	}
 
-	raw = raw[len(prefixJSON):]
+	raw = raw[len(prefix):]
 
 	index := strings.Index(raw, separator)
 	if index == -1 {
