@@ -1,13 +1,11 @@
 package topicbystate
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
-	"encoding/json"
-
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/savaki/zephyr"
 )
 
@@ -17,6 +15,12 @@ var (
 	ErrStateNotString  = errors.New("State attribute not of string type")
 	ErrStateNotChanged = errors.New("State record was not updated")
 )
+
+type Record struct {
+	Keys     map[string]zephyr.AttributeValue
+	NewImage map[string]zephyr.AttributeValue
+	OldImage map[string]zephyr.AttributeValue
+}
 
 type Handler struct {
 	State string
@@ -59,9 +63,9 @@ func (h *Handler) TopicName(record zephyr.Record) (string, error) {
 
 func (h *Handler) ExtractMessage(record zephyr.Record) (string, error) {
 	r := Record{
-		Keys:     newMap(record.Dynamodb.Keys),
-		NewImage: newMap(record.Dynamodb.NewImage),
-		OldImage: newMap(record.Dynamodb.OldImage),
+		Keys:     record.Dynamodb.Keys,
+		NewImage: record.Dynamodb.NewImage,
+		OldImage: record.Dynamodb.OldImage,
 	}
 
 	data, err := json.Marshal(r)
@@ -78,7 +82,7 @@ func New(state string) zephyr.TopicNamer {
 	}
 }
 
-func State(state string, item map[string]*dynamodb.AttributeValue) (string, error) {
+func State(state string, item map[string]zephyr.AttributeValue) (string, error) {
 	value, ok := item[state]
 	if !ok {
 		return "", ErrStateNotFound

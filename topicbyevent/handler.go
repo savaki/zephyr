@@ -45,7 +45,7 @@ func (h *Handler) TopicName(record zephyr.Record) (string, error) {
 }
 
 func (h *Handler) ExtractMessage(record zephyr.Record) (string, error) {
-	return Unmarshal(record.Dynamodb.NewImage, h.Key)
+	return unmarshal(record.Dynamodb.NewImage, h.Key)
 }
 
 func New(key string) *Handler {
@@ -54,18 +54,18 @@ func New(key string) *Handler {
 	}
 }
 
-func TopicName(item map[string]*dynamodb.AttributeValue, key string) (string, error) {
+func TopicName(item map[string]zephyr.AttributeValue, key string) (string, error) {
 	topicName := ""
-	err := Parse(item, key, func(tn string, message string) error {
+	err := parse(item, key, func(tn string, message string) error {
 		topicName = tn
 		return nil
 	})
 	return topicName, err
 }
 
-func Unmarshal(item map[string]*dynamodb.AttributeValue, key string) (string, error) {
+func unmarshal(item map[string]zephyr.AttributeValue, key string) (string, error) {
 	message := ""
-	err := Parse(item, key, func(t string, m string) error {
+	err := parse(item, key, func(t string, m string) error {
 		message = m
 		return nil
 	})
@@ -82,7 +82,7 @@ func Marshal(topic, value string) *dynamodb.AttributeValue {
 	return &dynamodb.AttributeValue{S: aws.String(w.String())}
 }
 
-func Parse(item map[string]*dynamodb.AttributeValue, key string, fn func(string, string) error) error {
+func parse(item map[string]zephyr.AttributeValue, key string, fn func(string, string) error) error {
 	if item == nil {
 		return ErrNilItem
 	}
