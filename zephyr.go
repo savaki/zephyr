@@ -56,13 +56,14 @@ type Records struct {
 }
 
 type Handler struct {
-	namer     TopicNamer
-	finder    TopicArnFinder
-	extractor MessageExtractor
-	publisher Publisher
-	topicArns *cache
-	writer    zap.WriteSyncer
-	log       zap.Logger
+	identifier EnvIdentifier
+	namer      TopicNamer
+	finder     TopicArnFinder
+	extractor  MessageExtractor
+	publisher  Publisher
+	topicArns  *cache
+	writer     zap.WriteSyncer
+	log        zap.Logger
 }
 
 func (h *Handler) HandlerFunc(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
@@ -78,11 +79,19 @@ func (h *Handler) HandlerFunc(event json.RawMessage, ctx *apex.Context) (interfa
 
 	h.log.Info("zephyr:records", zap.Int("records", len(records.Records)))
 	for _, record := range records.Records {
+		logger := h.log
+
+		// ---- Identify Env ----------------------------------------------------
+		env, ok := h.identifier.IdentifyEnv(record)
+		if ok {
+			logger = logger.With(zap.String("env", env))
+		}
+
 		// ---- Determine Topic Name --------------------------------------------
 
 		topicName, err := h.namer.TopicName(record)
 		if err != nil {
-			h.log.Info("zephyr:err:topic_name", zap.Err(err))
+			logger.Info("zephyr:err:topic_name", zap.Err(err))
 		}
 		if topicName == "" {
 			continue
@@ -90,12 +99,12 @@ func (h *Handler) HandlerFunc(event json.RawMessage, ctx *apex.Context) (interfa
 
 		// ---- Publish Record --------------------------------------------------
 
-		err = h.Publish(topicName, record)
+		err = h.Publish(logger, topicName, record)
 
 		if err != nil && ErrCode(err) == "NotFound" {
-			h.log.Warn("zephyr:err:topic_not_found")
+			logger.Warn("zephyr:err:topic_not_found")
 			h.topicArns.Delete(topicName)
-			err = h.Publish(topicName, record)
+			err = h.Publish(logger, topicName, record)
 		}
 
 		if err != nil {
@@ -106,10 +115,10 @@ func (h *Handler) HandlerFunc(event json.RawMessage, ctx *apex.Context) (interfa
 	return nil, nil
 }
 
-func (h *Handler) Publish(topicName string, record Record) error {
+func (h *Handler) Publish(logger zap.Logger, topicName string, record Record) error {
 	since := time.Now()
 
-	log := h.log.With(zap.String("name", topicName))
+	log := logger.With(zap.String("name", topicName))
 
 	// ---- Lookup Topic ARN ------------------------------------------------
 
@@ -136,7 +145,7 @@ func (h *Handler) Publish(topicName string, record Record) error {
 
 	// ---- Publish Message -------------------------------------------------
 
-	err = h.publisher.Publish(topicArn, r)
+	err = h.publisher.Publish(log, topicArn, r)
 	if err != nil {
 		log.Warn("zephyr:err:publish", zap.Err(err))
 		return err
@@ -156,11 +165,12 @@ func New(opts ...Option) apex.HandlerFunc {
 	client := sns.New(session.New(cfg))
 
 	handler := &Handler{
-		namer:     TopicNameFunc(topicName),
-		finder:    newLookupTopicArn(client),
-		extractor: ExtractMessageFunc(jsonMessage),
-		publisher: newPublishFunc(client),
-		writer:    zap.AddSync(ioutil.Discard),
+		identifier: EnvIdentifierFunc(identifyEnv),
+		namer:      TopicNameFunc(topicName),
+		finder:     newLookupTopicArn(client),
+		extractor:  ExtractMessageFunc(jsonMessage),
+		publisher:  newPublishFunc(client),
+		writer:     zap.AddSync(ioutil.Discard),
 	}
 
 	for _, opt := range opts {
@@ -198,6 +208,10 @@ func jsonMessage(r Record) (string, error) {
 	return string(data), nil
 }
 
+func identifyEnv(r Record) (string, bool) {
+	return "", false
+}
+
 func topicName(r Record) (string, error) {
 	return "", nil
 }
@@ -216,7 +230,7 @@ func newLookupTopicArn(client *sns.SNS) FindTopicArnFunc {
 }
 
 func newPublishFunc(client *sns.SNS) PublishFunc {
-	return func(topicArn *string, message string) error {
+	return func(logger zap.Logger, topicArn *string, message string) error {
 		_, err := client.Publish(&sns.PublishInput{
 			TopicArn: topicArn,
 			Message:  aws.String(message),

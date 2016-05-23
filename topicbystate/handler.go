@@ -26,6 +26,10 @@ type Handler struct {
 	State string
 }
 
+func (h *Handler) IdentifyEnv(record zephyr.Record) (string, bool) {
+	return IdentifyEnv(record)
+}
+
 func (h *Handler) TopicName(record zephyr.Record) (string, error) {
 	if record.EventName != zephyr.Insert && record.EventName != zephyr.Modify {
 		return "", nil
@@ -93,4 +97,21 @@ func State(state string, item map[string]zephyr.AttributeValue) (string, error) 
 	}
 
 	return *value.S, nil
+}
+
+const (
+	envLabel = "table/rewards-"
+)
+
+func IdentifyEnv(r zephyr.Record) (string, bool) {
+	from := strings.Index(r.EventSourceARN, envLabel)
+	if from == -1 {
+		return "", false
+	}
+	name := r.EventSourceARN[from+len(envLabel):]
+	to := strings.Index(name, "-")
+	if to == -1 {
+		return "", false
+	}
+	return name[:to], true
 }

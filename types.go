@@ -1,5 +1,19 @@
 package zephyr
 
+import "github.com/savaki/zap"
+
+// ---- EnvIdentifier -----------------------------------------------------------
+
+type EnvIdentifierFunc func(record Record) (string, bool)
+
+func (fn EnvIdentifierFunc) IdentifyEnv(record Record) (string, bool) {
+	return fn(record)
+}
+
+type EnvIdentifier interface {
+	IdentifyEnv(record Record) (string, bool)
+}
+
 // ---- TopicName ---------------------------------------------------------------
 
 type TopicNameFunc func(record Record) (string, error)
@@ -38,12 +52,12 @@ type MessageExtractor interface {
 
 // ---- Publisher ---------------------------------------------------------------
 
-type PublishFunc func(topicArn *string, message string) error
+type PublishFunc func(logger zap.Logger, topicArn *string, message string) error
 
-func (fn PublishFunc) Publish(topicArn *string, message string) error {
-	return fn(topicArn, message)
+func (fn PublishFunc) Publish(logger zap.Logger, topicArn *string, message string) error {
+	return fn(logger, topicArn, message)
 }
 
 type Publisher interface {
-	Publish(topicArn *string, message string) error
+	Publish(logger zap.Logger, topicArn *string, message string) error
 }

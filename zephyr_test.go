@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/savaki/zap"
 	"github.com/savaki/zephyr"
 )
 
@@ -29,7 +30,7 @@ func TestCompiles(t *testing.T) {
 			atomic.AddInt32(&topicNameCount, 1)
 			return "blah", nil
 		}),
-		zephyr.WithPublishFunc(func(topicArn *string, message string) error {
+		zephyr.WithPublishFunc(func(logger zap.Logger, topicArn *string, message string) error {
 			atomic.AddInt32(&publishCount, 1)
 			return nil
 		}),

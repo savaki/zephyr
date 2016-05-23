@@ -11,6 +11,11 @@ type Option func(*Handler)
 func WithHandler(handler interface{}) Option {
 	return func(h *Handler) {
 		switch v := handler.(type) {
+		case EnvIdentifier:
+			h.identifier = v
+		}
+
+		switch v := handler.(type) {
 		case TopicNamer:
 			h.namer = v
 		}
@@ -29,6 +34,12 @@ func WithHandler(handler interface{}) Option {
 		case TopicArnFinder:
 			h.finder = v
 		}
+	}
+}
+
+func WithEnvIdentifier(v EnvIdentifier) Option {
+	return func(h *Handler) {
+		h.identifier = v
 	}
 }
 
